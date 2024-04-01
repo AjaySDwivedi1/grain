@@ -221,7 +221,7 @@ let makeSnapshotRunner =
     Config.preserve_all_configs(() => {
       ignore @@
       compile(
-        ~hook=stop_after_object_file_emitted,
+        ~hook=stop_after_compiled,
         ~config_fn?,
         name,
         module_header ++ prog,
@@ -250,12 +250,7 @@ let makeSnapshotFileRunner = (test, ~config_fn=?, name, filename) => {
       let infile = grainfile(filename);
       let outfile = wasmfile(name);
       ignore @@
-      compile_file(
-        ~hook=stop_after_object_file_emitted,
-        ~config_fn?,
-        infile,
-        outfile,
-      );
+      compile_file(~hook=stop_after_compiled, ~config_fn?, infile, outfile);
       let file = watfile(name);
       expect.file(file).toMatchSnapshot();
     })

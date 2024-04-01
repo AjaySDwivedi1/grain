@@ -2024,7 +2024,7 @@ let construct_type_metadata_buffer = type_metadata => {
 };
 
 let transl_anf_module =
-    ({statements, env, signature}: typed_program): anf_program => {
+    ({statements, env, signature, prog_loc}: typed_program): anf_program => {
   Path_tbl.clear(type_map);
   Path_tbl.clear(include_map);
   Path_tbl.clear(module_symbol_map);
@@ -2062,6 +2062,7 @@ let transl_anf_module =
     },
     type_metadata,
     analyses: ref([]),
+    prog_loc,
   };
 };
 

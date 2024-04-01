@@ -18,9 +18,11 @@ type compilation_state_desc =
   | Linearized(Anftree.anf_program)
   | Optimized(Anftree.anf_program)
   | Mashed(Mashtree.mash_program)
+  | ObjectEmitted(Mashtree.mash_program)
+  | ObjectsLinked(Linkedtree.linked_program)
   | Compiled(Compmod.compiled_program)
-  | ObjectFileEmitted(Compmod.compiled_program)
-  | Linked(Compmod.compiled_program)
+  // | ObjectFileEmitted(Compmod.compiled_program)
+  // | Linked(Compmod.compiled_program)
   | Assembled;
 
 type compilation_state = {
@@ -59,9 +61,9 @@ let stop_after_mashed: compilation_state => compilation_action;
 
 let stop_after_compiled: compilation_state => compilation_action;
 
-let stop_after_object_file_emitted: compilation_state => compilation_action;
+// let stop_after_object_file_emitted: compilation_state => compilation_action;
 
-let stop_after_linked: compilation_state => compilation_action;
+// let stop_after_linked: compilation_state => compilation_action;
 
 let stop_after_assembled: compilation_state => compilation_action;
 

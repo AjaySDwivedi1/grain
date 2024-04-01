@@ -20,9 +20,21 @@ let emit_module = ({asm, signature}, outfile) => {
     output_string(oc, asm_string);
     close_out(oc);
   };
+  switch (Config.profile^) {
+  | Some(Release) => Binaryen.Settings.set_debug_info(false)
+  | _ => Binaryen.Settings.set_debug_info(true)
+  };
   let source_map_name =
     if (Config.source_map^) {
-      Some(Filepath.String.basename(outfile) ++ ".map");
+      Binaryen.Settings.set_debug_info(true);
+      // Binaryen.Module.add_custom_section(
+      //   asm,
+      //   "sourceMappingURL",
+      //   "http://localhost:5174/test.gr.wasm.map",
+      // );
+      // let map = Filepath.String.basename(outfile) ++ ".map";
+      // Some(map);
+      Some("http://localhost:5174/test.gr.wasm.map");
     } else {
       None;
     };

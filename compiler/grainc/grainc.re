@@ -43,7 +43,7 @@ let compile_file = (name, outfile_arg) => {
       if (Grain_utils.Config.statically_link^) {
         Compile.stop_after_assembled;
       } else {
-        Compile.stop_after_object_file_emitted;
+        Compile.stop_after_mashed;
       };
     ignore(Compile.compile_file(~is_root_file=true, ~hook, ~outfile, name));
   }) {

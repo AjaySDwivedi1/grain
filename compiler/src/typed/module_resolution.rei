@@ -1,4 +1,4 @@
-let locate_module_file:
+let locate_object_file:
   (~loc: Grain_parsing.Location.t, ~disable_relpath: bool=?, string) => string;
 
 let locate_unit_object_file:

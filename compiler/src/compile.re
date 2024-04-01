@@ -20,9 +20,9 @@ type compilation_state_desc =
   | Linearized(Anftree.anf_program)
   | Optimized(Anftree.anf_program)
   | Mashed(Mashtree.mash_program)
+  | ObjectEmitted(Mashtree.mash_program)
+  | ObjectsLinked(Linkedtree.linked_program)
   | Compiled(Compmod.compiled_program)
-  | ObjectFileEmitted(Compmod.compiled_program)
-  | Linked(Compmod.compiled_program)
   | Assembled;
 
 type compilation_state = {
@@ -45,9 +45,6 @@ let default_output_filename = name => name ++ ".wasm";
 
 let default_mashtree_filename = name =>
   Filepath.String.remove_extension(name) ++ ".mashtree";
-
-let compile_prog = p =>
-  Compcore.module_to_bytes @@ Compcore.compile_wasm_module(p);
 
 let log_state = state =>
   if (Grain_utils.Config.verbose^) {
@@ -80,9 +77,13 @@ let log_state = state =>
     | Mashed(mashed) =>
       prerr_string("\nMashed program:\n");
       prerr_sexp(Mashtree.sexp_of_mash_program, mashed);
+    | ObjectEmitted(mashed) =>
+      prerr_string("\nMashfile emitted successfully")
+    | ObjectsLinked(linked) =>
+      prerr_string("\nMashfiles linked successfully")
     | Compiled(compiled) => prerr_string("\nCompiled successfully")
-    | ObjectFileEmitted(compiled) => prerr_string("\nEmitted successfully")
-    | Linked(linked) => prerr_string("\nLinked successfully")
+    // | ObjectFileEmitted(compiled) => prerr_string("\nEmitted successfully")
+    // | Linked(linked) => prerr_string("\nLinked successfully")
     | Assembled => prerr_string("\nAssembled successfully")
     };
     prerr_string("\n\n");
@@ -159,20 +160,41 @@ let next_state = (~is_root_file=false, {cstate_desc, cstate_filename} as cs) => 
     | Optimized(optimized) =>
       Mashed(Transl_anf.transl_anf_program(optimized))
     | Mashed(mashed) =>
-      Compiled(Compmod.compile_wasm_module(~name=?cstate_filename, mashed))
+      switch (cs.cstate_outfile) {
+      | Some(outfile) =>
+        Grain_utils.Fs_access.ensure_parent_directory_exists(outfile);
+        // let mash_string =
+        //   Sexplib.Sexp.to_string_hum @@ Mashtree.sexp_of_mash_program(mashed);
+        let oc = open_out_bin(outfile);
+        output_byte(oc, 0xF0);
+        output_byte(oc, 0x9F);
+        output_byte(oc, 0x8C);
+        output_byte(oc, 0xBE);
+        let cmi = Marshal.to_bytes(mashed.signature, []);
+        output_binary_int(oc, Bytes.length(cmi));
+        output_bytes(oc, cmi);
+        Marshal.to_channel(oc, mashed, []);
+        // output_string(oc, mash_string);
+        close_out(oc);
+      | None => ()
+      };
+      ObjectEmitted(mashed);
+    | ObjectEmitted(mashed) => ObjectsLinked(Linkedtree.link(mashed))
+    | ObjectsLinked(linked) =>
+      Compiled(Compmod.compile_wasm_module(~name=?cstate_filename, linked))
     | Compiled(compiled) =>
       switch (cs.cstate_outfile) {
       | Some(outfile) => Emitmod.emit_module(compiled, outfile)
       | None => ()
       };
-      ObjectFileEmitted(compiled);
-    | ObjectFileEmitted(compiled) =>
-      Linked(Linkmod.statically_link_wasm_module(compiled))
-    | Linked(linked) =>
-      switch (cs.cstate_outfile) {
-      | Some(outfile) => Emitmod.emit_module(linked, outfile)
-      | None => ()
-      };
+      //   ObjectFileEmitted(compiled);
+      // | ObjectFileEmitted(compiled) =>
+      //   Linked(Linkmod.statically_link_wasm_module(compiled))
+      // | Linked(linked) =>
+      //   switch (cs.cstate_outfile) {
+      //   | Some(outfile) => Emitmod.emit_module(linked, outfile)
+      //   | None => ()
+      //   };
       Assembled;
     | Assembled => Assembled
     };
@@ -233,19 +255,23 @@ let stop_after_mashed =
   fun
   | {cstate_desc: Mashed(_)} => Stop
   | s => Continue(s);
+let stop_after_mashfile_emitted =
+  fun
+  | {cstate_desc: ObjectEmitted(_)} => Stop
+  | s => Continue(s);
 
 let stop_after_compiled =
   fun
   | {cstate_desc: Compiled(_)} => Stop
   | s => Continue(s);
-let stop_after_object_file_emitted =
-  fun
-  | {cstate_desc: ObjectFileEmitted(_)} => Stop
-  | s => Continue(s);
-let stop_after_linked =
-  fun
-  | {cstate_desc: Linked(_)} => Stop
-  | s => Continue(s);
+// let stop_after_object_file_emitted =
+//   fun
+//   | {cstate_desc: ObjectFileEmitted(_)} => Stop
+//   | s => Continue(s);
+// let stop_after_linked =
+//   fun
+//   | {cstate_desc: Linked(_)} => Stop
+//   | s => Continue(s);
 let stop_after_assembled =
   fun
   | {cstate_desc: Assembled} => Stop
@@ -264,7 +290,7 @@ let compile_wasi_polyfill = () => {
       ignore(
         compile_resume(
           ~is_root_file=true,
-          ~hook=stop_after_object_file_emitted,
+          ~hook=stop_after_mashfile_emitted,
           cstate,
         ),
       );
@@ -356,7 +382,7 @@ let () =
             ~is_root_file=false,
             ~outfile,
             ~reset=false,
-            ~hook=stop_after_object_file_emitted,
+            ~hook=stop_after_mashfile_emitted,
             input,
           ),
         )

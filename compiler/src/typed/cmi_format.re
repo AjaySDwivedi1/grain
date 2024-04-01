@@ -46,8 +46,18 @@ let cmi_digest_of_yojson =
       "cmi_digest_of_yojson: Invalid Digest: " ++ Yojson.Safe.to_string(d),
     );
 
+let sexp_of_cmi_digest = d => Sexplib.Conv.sexp_of_string(Digest.to_hex(d));
+let cmi_digest_of_sexp =
+  fun
+  | Sexplib.Sexp.Atom(s) as d =>
+    try(Digest.from_hex(s)) {
+    | Invalid_argument(_) =>
+      of_sexp_error("cmi_digest_of_sexp: invalid digest", d)
+    }
+  | d => of_sexp_error("cmi_digest_of_sexp: invalid digest", d);
+
 [@deriving sexp]
-type cmi_crcs = [@sexp.opaque] list((string, option(Digest.t)));
+type cmi_crcs = list((string, option(cmi_digest)));
 let rec cmi_crcs_of_yojson = [%of_yojson:
   list((string, option(cmi_digest)))
 ]
@@ -137,20 +147,54 @@ module CmiBinarySection =
 
 let read_cmi = filename => {
   let ic = open_in_bin(filename);
-  switch (CmiBinarySection.load(ic)) {
-  | Some(cmi) =>
+  assert(input_byte(ic) == 0xF0);
+  assert(input_byte(ic) == 0x9F);
+  assert(input_byte(ic) == 0x8C);
+  assert(input_byte(ic) == 0xBE);
+  let _ = input_binary_int(ic);
+  switch (Marshal.from_channel(ic)) {
+  | cmi =>
     close_in(ic);
     cmi;
-  | None
-  | exception End_of_file
-  | exception (Invalid_argument(_))
-  | exception (Failure(_)) =>
+  | exception _ =>
     close_in(ic);
     raise(Error(Corrupted_interface(filename)));
-  | exception (Error(e)) =>
-    close_in(ic);
-    raise(Error(e));
   };
+  // let sexp = Sexplib.Sexp.load_sexp(filename);
+  // switch (Sexplib.Sexp.load_sexp(filename)) {
+  // | Sexplib.Sexp.List(atoms) =>
+  //   let sign =
+  //     List.find_map(
+  //       sexp => {
+  //         switch (sexp) {
+  //         | Sexplib.Sexp.List([Sexplib.Sexp.Atom("signature"), sign]) =>
+  //           Some(sign)
+  //         | _ => None
+  //         }
+  //       },
+  //       atoms,
+  //     );
+  //   switch (sign) {
+  //   | Some(sign) => cmi_infos_of_sexp(sign)
+  //   | None => raise(Error(Corrupted_interface(filename)))
+  //   };
+  // | _
+  // | exception _ => raise(Error(Corrupted_interface(filename)))
+  // switch (CmiBinarySection.load(ic)) {
+  // | Some(cmi) =>
+  //   close_in(ic);
+  //   cmi;
+  // | None
+  // | exception End_of_file
+  // | exception (Invalid_argument(_))
+  // | exception (Failure(_)) =>
+  //   close_in(ic);
+  //   raise(Error(Corrupted_interface(filename)));
+  // | exception (Error(e)) =>
+  //   close_in(ic);
+  //   raise(Error(e));
+  // };
+  // };
 };
 
 let serialize_cmi = cmi =>

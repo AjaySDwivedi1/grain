@@ -1,6 +1,7 @@
 type profile =
   | Release;
 
+[@deriving sexp]
 type compilation_mode =
   | Normal /* Standard compilation with regular bells and whistles */
   | Runtime /* GC doesn't exist yet, allocations happen in runtime heap */;

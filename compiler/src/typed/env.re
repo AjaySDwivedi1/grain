@@ -830,7 +830,7 @@ module Persistent_signature = {
 
   let load =
     ref((~loc=Location.dummy_loc, unit_name) => {
-      switch (Module_resolution.locate_module_file(~loc, unit_name)) {
+      switch (Module_resolution.locate_object_file(~loc, unit_name)) {
       | filename =>
         let ret = {filename, cmi: Module_resolution.read_file_cmi(filename)};
         Some(ret);

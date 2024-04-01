@@ -1049,7 +1049,7 @@ let initial_env = () => {
   );
 };
 
-let type_implementation = prog => {
+let type_implementation = (prog: Parsetree.parsed_program) => {
   let sourcefile = prog.prog_loc.loc_start.pos_fname;
   let module_name = prog.module_name.txt;
   Env.set_unit((
@@ -1075,6 +1075,7 @@ let type_implementation = prog => {
     env: finalenv,
     signature,
     comments: prog.comments,
+    prog_loc: prog.prog_loc,
   };
 };
 

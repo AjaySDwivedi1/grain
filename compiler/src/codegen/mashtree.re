@@ -341,6 +341,7 @@ and last_usage =
 [@deriving sexp]
 type closure_data = {
   func_idx: option(int32),
+  global_offset: string,
   arity: int32,
   variables: list(immediate),
 };
@@ -548,10 +549,13 @@ type mash_program = {
   exports: list(export),
   main_body: block,
   main_body_stack_size: stack_size,
-  globals: list((Ident.t, Types.allocation_type)),
+  globals: list((Ident.t, bool, Types.allocation_type, option(constant))),
   function_table_elements: list(string),
+  global_function_table_offset: Ident.t,
+  compilation_mode: Grain_utils.Config.compilation_mode,
   signature: Cmi_format.cmi_infos,
   type_metadata: list(Types.type_metadata),
+  prog_loc: Location.t,
 };
 
 let const_true = MConstLiteral(MConstI32(Int32.of_int(0xFFFFFFFE)));
